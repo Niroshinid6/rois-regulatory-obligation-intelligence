@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: rois_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rois_user
+      POSTGRES_PASSWORD: rois_password
+      POSTGRES_DB: rois_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rois_user -d rois_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rois_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://rois_user:rois_password@db:5432/rois_db
+      - SECRET_KEY=rois-docker-production-secret-gift-futurelab
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      - UPLOAD_DIR=/app/uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rois_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads_data:
