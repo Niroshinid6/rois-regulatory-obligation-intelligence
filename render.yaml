@@ -1,0 +1,39 @@
+databases:
+  - name: rois-postgres
+    plan: free
+    databaseName: rois
+    user: rois
+
+services:
+  - type: web
+    name: rois-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/v1/health
+    preDeployCommand: python -m alembic upgrade head
+    envVars:
+      - key: ROIS_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rois-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "25"
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_FULL_NAME
+        value: "ROIS System Administrator"
+    disk:
+      name: rois-uploads
+      mountPath: /var/data/uploads
+      sizeGB: 1

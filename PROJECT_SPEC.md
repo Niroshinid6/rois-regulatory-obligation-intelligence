@@ -142,3 +142,38 @@ The database schema supports end-to-end evidence tracking:
 - **Phase E:** Version comparison engine, compliance control mapping, and human review queue.
 - **Phase F:** Impact report generator, comprehensive test suite, bug verification.
 - **Phase G:** Docker, deployment configuration for Render and Vercel, demo data preparation.
+
+---
+
+## 8. Runtime, Upload, and OCR Requirements
+
+- Upload requests are limited to `MAX_UPLOAD_SIZE_MB`, validated by PDF signature,
+  PDF structure, and password/encryption checks, and stored under UUID filenames.
+- Exact duplicate PDFs are detected by SHA-256 before a record or file is created.
+- PDF downloads require JWT authentication.
+- PDF text remains the primary extraction source. For pages below 20 extractable
+  characters, Tesseract OCR is attempted only when the executable and Python wrapper
+  are available.
+- OCR-derived text is identified by `extraction_method=ocr`; confidence is stored
+  and values below 60 are marked `requires_human_review`.
+- Logout revokes the access token's server-side `jti` for the active process.
+
+## 9. Deployment and Validation Status
+
+- SQLite migrations and model drift are validated through Alembic.
+- PostgreSQL and Docker runtime validation require a host with Docker or PostgreSQL
+  tooling. They are not to be represented as PASS until containers and migrations
+  have been executed.
+- Production startup requires a unique secret and must not use demo seeding.
+- Deployment proceeds to PostgreSQL only after database backup and migration
+  rehearsal against a disposable database.
+
+## 10. Release Accuracy Boundary
+
+- Demonstration PDFs and seeded records are not official IFSCA circulars.
+- OCR-derived text is identified as OCR, carries confidence where available,
+  and requires human review when uncertain.
+- Every obligation must retain a matching source page and exact text span.
+- Version comparisons remain machine classifications until a reviewer verifies
+  the change.
+- Control mappings are recommendations, never verified controls, until reviewed.

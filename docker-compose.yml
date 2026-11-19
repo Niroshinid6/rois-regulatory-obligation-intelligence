@@ -1,20 +1,16 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
     container_name: rois_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: rois_user
-      POSTGRES_PASSWORD: rois_password
-      POSTGRES_DB: rois_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-rois_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the root .env file}
+      POSTGRES_DB: ${POSTGRES_DB:-rois_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rois_user -d rois_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rois_user} -d ${POSTGRES_DB:-rois_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,10 +22,11 @@ services:
     container_name: rois_backend
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://rois_user:rois_password@db:5432/rois_db
-      - SECRET_KEY=rois-docker-production-secret-gift-futurelab
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
-      - UPLOAD_DIR=/app/uploads
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-rois_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the root .env file}@db:5432/${POSTGRES_DB:-rois_db}"
+      ROIS_ENV: ${ROIS_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in the root .env file}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      UPLOAD_DIR: /app/uploads
     ports:
       - "8000:8000"
     volumes:
@@ -37,11 +34,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
     container_name: rois_frontend
     restart: unless-stopped
     ports:

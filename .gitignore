@@ -47,6 +47,8 @@ pnpm-debug.log*
 # Database & Uploads
 *.sqlite3
 *.db
+*.db.*
+*.backup
 backend/rois.db
 backend/uploads/
 uploads/
