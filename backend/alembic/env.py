@@ -17,7 +17,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline():
     context.configure(
-        url=settings.DATABASE_URL,
+        url=settings.normalized_migration_database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -28,9 +28,14 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+    migration_url = settings.normalized_migration_database_url
+    connect_args = {"check_same_thread": False} if migration_url.startswith("sqlite") else {}
+    if migration_url.lower().startswith("postgresql") and (
+        ":6543/" in migration_url.lower() or "pgbouncer=true" in migration_url.lower()
+    ):
+        connect_args["prepare_threshold"] = 0
     engine = create_engine(
-        settings.DATABASE_URL,
+        migration_url,
         poolclass=NullPool,
         connect_args=connect_args,
     )

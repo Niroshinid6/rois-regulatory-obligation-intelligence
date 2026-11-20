@@ -26,10 +26,16 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite:///./rois.db"
+    MIGRATION_DATABASE_URL: str | None = None
+    DATABASE_SERVERLESS: bool = True
 
     # Uploads & Storage
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 25
+    DOCUMENT_STORAGE_PROVIDER: str = "local"
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "rois-documents"
     BOOTSTRAP_ADMIN_EMAIL: str = ""
     BOOTSTRAP_ADMIN_PASSWORD: str = ""
     BOOTSTRAP_ADMIN_FULL_NAME: str = "ROIS System Administrator"
@@ -41,9 +47,36 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
+    @staticmethod
+    def normalize_database_url(database_url: str) -> str:
+        url = database_url.strip()
+        if url.startswith("postgres://"):
+            return "postgresql+psycopg://" + url[len("postgres://"):]
+        if url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + url[len("postgresql://"):]
+        if url.startswith("postgresql+psycopg://"):
+            return url
+        return url
+
+    @property
+    def normalized_database_url(self) -> str:
+        return self.normalize_database_url(self.DATABASE_URL)
+
+    @property
+    def normalized_migration_database_url(self) -> str:
+        migration_url = self.MIGRATION_DATABASE_URL or self.DATABASE_URL
+        return self.normalize_database_url(migration_url)
+
     @model_validator(mode="after")
     def require_production_secret(self):
         env = self.ROIS_ENV.lower()
+        if self.DOCUMENT_STORAGE_PROVIDER.strip().lower() == "supabase":
+            if not self.SUPABASE_URL.strip().startswith("https://"):
+                raise ValueError("SUPABASE_URL must be an HTTPS project URL.")
+            if len(self.SUPABASE_SERVICE_ROLE_KEY.strip()) < 20:
+                raise ValueError("SUPABASE_SERVICE_ROLE_KEY is required.")
+            if not self.SUPABASE_STORAGE_BUCKET.strip():
+                raise ValueError("SUPABASE_STORAGE_BUCKET is required.")
         if env != "test" and (
             self.SECRET_KEY == DEVELOPMENT_SECRET or len(self.SECRET_KEY) < 32
             or self.SECRET_KEY.lower().startswith(("replace-", "change-"))
@@ -52,11 +85,15 @@ class Settings(BaseSettings):
                 "Non-test environments require a unique SECRET_KEY of at least 32 characters."
             )
         if env == "production":
-            database_url = self.DATABASE_URL.lower()
+            database_url = self.normalized_database_url.lower()
             if database_url.startswith("sqlite"):
                 raise ValueError("Production requires PostgreSQL; SQLite is not supported.")
-            if not database_url.startswith(("postgresql://", "postgres://", "postgresql+psycopg://")):
+            if not database_url.startswith("postgresql+psycopg://"):
                 raise ValueError("Production DATABASE_URL must be a PostgreSQL connection URL.")
+            if self.MIGRATION_DATABASE_URL:
+                migration_url = self.normalized_migration_database_url.lower()
+                if not migration_url.startswith("postgresql+psycopg://"):
+                    raise ValueError("MIGRATION_DATABASE_URL must be a PostgreSQL connection URL.")
             cors_origins = [origin.strip().lower() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
             if not cors_origins or any(
                 origin.startswith("http://localhost")

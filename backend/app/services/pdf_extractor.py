@@ -49,8 +49,14 @@ class PDFExtractionService:
             return "", None, []
 
     @staticmethod
-    def calculate_file_hash(file_path: str) -> str:
+    def calculate_file_hash(file_path) -> str:
         hasher = hashlib.sha256()
+        if hasattr(file_path, "read"):
+            file_path.seek(0)
+            while chunk := file_path.read(65536):
+                hasher.update(chunk)
+            file_path.seek(0)
+            return hasher.hexdigest()
         with open(file_path, 'rb') as f:
             while chunk := f.read(65536):
                 hasher.update(chunk)
@@ -58,10 +64,20 @@ class PDFExtractionService:
 
     @classmethod
     def extract_document(cls, file_path: str) -> Dict[str, Any]:
-        if not os.path.exists(file_path):
-            raise PDFExtractionError(f"File not found: {file_path}")
-
-        file_size = os.path.getsize(file_path)
+        if hasattr(file_path, "read"):
+            file_path.seek(0)
+            file_size = getattr(file_path, "length", None)
+            if file_size is None:
+                position = file_path.tell()
+                file_path.seek(0, os.SEEK_END)
+                file_size = file_path.tell()
+                file_path.seek(position)
+                if position == 0:
+                    file_path.seek(0)
+        else:
+            if not os.path.exists(file_path):
+                raise PDFExtractionError(f"File not found: {file_path}")
+            file_size = os.path.getsize(file_path)
         if file_size == 0:
             raise PDFExtractionError("PDF file is completely empty (0 bytes)")
 

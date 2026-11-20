@@ -6,6 +6,7 @@ from app.models.review import ReviewRecord
 from app.models.report import ImpactReport
 from app.models.audit import AuditLog
 from app.models.token_revocation import RevokedToken
+from app.models.storage_cleanup import StorageCleanupTask
 
 __all__ = [
     "User",
@@ -22,5 +23,6 @@ __all__ = [
     "ReviewRecord",
     "ImpactReport",
     "AuditLog",
-    "RevokedToken"
+    "RevokedToken",
+    "StorageCleanupTask"
 ]

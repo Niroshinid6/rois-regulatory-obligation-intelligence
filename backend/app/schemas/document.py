@@ -31,10 +31,14 @@ class DocumentPageResponse(BaseModel):
 
 class DocumentResponse(DocumentBase):
     id: int
-    file_path: str
+    file_path: Optional[str] = None
     file_hash: str
     file_size: int
     status: str
+    storage_provider: Optional[str] = None
+    storage_status: str = "legacy"
+    processing_status: str = "not_started"
+    can_download: bool = True
     page_count: int
     created_at: str
     created_by: Optional[int] = None
